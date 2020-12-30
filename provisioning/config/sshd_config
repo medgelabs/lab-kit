@@ -1,6 +1,6 @@
 PermitRootLogin prohibit-password
 PubkeyAuthentication yes
-AllowUsers medge root
+AllowUsers medge
 X11Forwarding no
 StrictModes yes
 IgnoreRhosts yes
