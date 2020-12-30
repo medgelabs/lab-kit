@@ -4,11 +4,16 @@ metadata:
   name: test-ingress
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/issuer: "letsencrypt-staging"
 spec:
+  tls:
+  - hosts:
+    - k8s.local
+    secretName: test-cluster-cert
   rules:
   - http:
       paths:
-      - path: /test
+      - path: /test-cluster
         pathType: Prefix
         backend:
           service:

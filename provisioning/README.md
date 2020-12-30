@@ -2,7 +2,7 @@
 
 Notes:
 
-* Kubernetes Manager node assumed to be `192.168.1.131`
+* Kubernetes Manager node assumed to be `192.168.1.131`. This can be changed in the Makefile
 
 ## Setup
 
@@ -16,19 +16,17 @@ The machine can now be provisioned with the Makefile.
 Usage:
 
 ```
-NHOST="IP_ADDR" make provision
+HOST="IP_ADDR" make provision
 ```
 
 Provisions a new host with a Firewall, SSHD config, and other tools.
 
 ## Kubernetes
 
-
-
 ### Manager Node
 
 ```
-NHOST="IP_ADDR" make kube-manager
+HOST="IP_ADDR" make kube-manager
 ```
 
 Installs a Manager node. Make also downloads `/etc/rancher/k3s/k3s.yaml` to `./kube.yaml`.
@@ -50,7 +48,7 @@ We ignore this failure in make and proceed anyway.
 ### Worker Nodes
 
 ```
-NHOST="IP_ADDR" make kube-worker
+HOST="IP_ADDR" make kube-worker
 ```
 
 Installs a Worker node, including grabbing the NODE_TOKEN from the manager node.
