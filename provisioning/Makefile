@@ -2,22 +2,23 @@
 NODE_HOST=${HOST}
 USER=medge
 KUBE_MANAGER_IP=192.168.1.131
+METALLB_RANGE=192.168.1.200-192.168.1.240
 
 # Provision a new node
 .PHONY: provision
 provision:
-	  # Enable passwordless sudo for service account
-		scp config/sudoers ${NODE_HOST}:/home/${USER}/sudoers
-		@echo "SSH'ing into box. Run:"
-		@echo "sudo rsync --remove-source-files --chown=root:root sudoers /etc/sudoers.d/medge"
-		@echo "Then exit to continue installation"
-		ssh ${NODE_HOST}
-	  # Necessary installs & setup
-		scp install.sh ${NODE_HOST}:/home/${USER}/install.sh
-		ssh ${NODE_HOST} "chmod +x /home/${USER}/install.sh && sudo /home/${USER}/install.sh && rm /home/${USER}/install.sh"
-		# SSH lockdown
-		scp config/sshd_config ${NODE_HOST}:/tmp/sshd_config
-		ssh ${NODE_HOST} 'sudo mv /tmp/sshd_config /etc/ssh/sshd_config && sudo systemctl restart sshd'
+	# Enable passwordless sudo for service account
+	scp config/sudoers ${NODE_HOST}:/home/${USER}/sudoers
+	@echo "SSH'ing into box. Run:"
+	@echo "sudo rsync --remove-source-files --chown=root:root sudoers /etc/sudoers.d/medge"
+	@echo "Then exit to continue installation"
+	ssh ${NODE_HOST}
+	# Necessary installs & setup
+	scp install.sh ${NODE_HOST}:/home/${USER}/install.sh
+	ssh ${NODE_HOST} "chmod +x /home/${USER}/install.sh && sudo /home/${USER}/install.sh && rm /home/${USER}/install.sh"
+	# SSH lockdown
+	scp config/sshd_config ${NODE_HOST}:/tmp/sshd_config
+	ssh ${NODE_HOST} 'sudo mv /tmp/sshd_config /etc/ssh/sshd_config && sudo systemctl restart sshd'
 
 .PHONY: kube-manager
 kube-manager: provision
@@ -39,7 +40,7 @@ kube-worker: provision
 init-k8s:
 	kubectl apply -f k8s/metallb-v0.9.5.yml
 	kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$$(openssl rand -base64 128)" || exit 0
-	kubectl apply -f k8s/metallb-config.yml
+	sed -e "s/METALLB_RANGE/${METALLB_RANGE}/g" k8s/metallb-config.yml | kubectl apply -f -
 	# ingress-nginx
 	kubectl apply -f k8s/ingress-nginx.yml
 	kubectl wait --namespace ingress-nginx \
