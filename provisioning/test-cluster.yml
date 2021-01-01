@@ -30,7 +30,7 @@ metadata:
   namespace: default
 spec:
   selector:
-    app: test-cluster
+    name: test-cluster
   type: ClusterIP
   ports:
     - protocol: TCP
@@ -46,12 +46,15 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: test-cluster
+      name: test-cluster
   replicas: 2
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /test
       labels:
-        app: test-cluster
+        name: test-cluster
     spec:
       containers:
       - name: nginx
