@@ -19,15 +19,14 @@ provision:
 	# SSH lockdown
 	scp config/sshd_config ${NODE_HOST}:/tmp/sshd_config
 	ssh ${NODE_HOST} 'sudo mv /tmp/sshd_config /etc/ssh/sshd_config && sudo systemctl restart sshd'
+	ssh ${NODE_HOST} 'rm /home/${USER}/sudoers'
 
 .PHONY: kube-manager
 kube-manager: provision
-	ssh ${NODE_HOST} 'export INSTALL_K3S_EXEC=" --no-deploy servicelb --no-deploy traefik"; curl -sfL https://get.k3s.io | sh -'
-	ssh ${NODE_HOST} "sudo cp /etc/rancher/k3s/k3s.yaml /home/${USER}/k3s.yaml && sudo chown ${USER}:${USER} /home/${USER}/k3s.yaml"
-	scp ${NODE_HOST}:/home/${USER}/k3s.yaml ./kubectl.yaml.tmp
-	sed -e "s/127.0.0.1:6443/${KUBE_MANAGER_IP}:6443/g" ./kubectl.yaml.tmp > ./kubectl.yaml
+	ssh ${NODE_HOST} 'export INSTALL_K3S_EXEC=" --write-kubeconfig-mode 644 --no-deploy servicelb --no-deploy traefik"; curl -sfL https://get.k3s.io | sh -'
+	scp ${NODE_HOST}:/etc/rancher/k3s/k3s.yaml ./kubectl.yaml.tmp
+	sed -e "s/127.0.0.1:6443/${KUBE_MANAGER_IP}:6443/g" kubectl.yaml.tmp > ./kubectl.yaml
 	rm ./kubectl.yaml.tmp
-	ssh ${NODE_HOST} "rm /home/${USER}/k3s.yaml"
 	@echo 'Now, copy ./kubectl.yaml cluster config to ~/.kube/config'
 	@echo 'If all good, kubectl get nodes should now work'
 
@@ -38,9 +37,14 @@ kube-worker: provision
 
 .PHONY: init-k8s
 init-k8s:
+	# metallb Load Balancer
 	kubectl apply -f k8s/metallb-v0.9.5.yml
 	kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$$(openssl rand -base64 128)" || exit 0
 	sed -e "s/METALLB_RANGE/${METALLB_RANGE}/g" k8s/metallb-config.yml | kubectl apply -f -
+	kubectl wait --namespace metallb-system \
+            --for=condition=ready pod \
+            --selector=app=metallb \
+            --timeout=120s
 	# ingress-nginx
 	kubectl apply -f k8s/ingress-nginx.yml
 	kubectl wait --namespace ingress-nginx \
@@ -58,7 +62,7 @@ init-k8s:
 .PHONY: test-k8s
 test-k8s:
 	kubectl apply -f test-cluster.yml
-	kubectl wait --namespace default --for=condition=ready pod --selector=app=test-cluster --timeout=120s
+	kubectl wait --namespace default --for=condition=ready pod --selector=name=test-cluster --timeout=120s
 	export INGRESS_IP=$$(kubectl get svc -n ingress-nginx | grep ingress-nginx | awk '{ print $$4 }'); curl https://$${INGRESS_IP}/test-cluster
 	@echo -n "Press ENTER when done testing" && read
 	kubectl delete -f test-cluster.yml
